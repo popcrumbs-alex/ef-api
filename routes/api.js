@@ -17,17 +17,18 @@ router.post("/", async (req, res) => {
 
     try {
         // console.log("cf-data", data);
-        const { contact, purchase } = req.body
+        const { contact, purchase, event } = req.body
 
-        // const { type, attributes } = data;
 
-        console.log('type:', "contact: ", contact ? 'contact event' : '', "purchase: ", purchase)
+
+        if (purchase) console.log('type:', event, "purchase: ", purchase)
+
         if (contact) {
-            console.log('contact event,returning from webhook')
-            return res.status(200).json({ msg: 'Do not care about this event :(' })
+            console.log('contact event, returning from webhook')
+            return res.status(200).send({ msg: 'Do not need contact event' })
         }
 
-        const { products } = purchase
+        const { products, status, error_message } = purchase
 
         const productAmount = products.reduce((total, product) => {
             return total + parseFloat(product?.amount?.cents)
@@ -35,8 +36,12 @@ router.post("/", async (req, res) => {
 
         const formattedAmount = (productAmount / 100).toFixed(2);
 
-
-        console.log('product amount', formattedAmount);
+        console.log('product amount', formattedAmount, status, error_message);
+        //handle cards being declined
+        if (status === 'failed') {
+            console.log(error_message)
+            return res.status(200).json(error_message)
+        }
 
         const { aff_sub } = purchase.contact
 
@@ -45,8 +50,9 @@ router.post("/", async (req, res) => {
             return res.status(200).json({ msg: 'No affiliate id associated with purchase' })
         }
         console.log("affiliate sub id", aff_sub)
+
         const response = await axios({
-            url: `https://www.poptrkr.com/?nid=577&transaction_id=${aff_sub}&amount=${formattedAmount}`,
+            url: event === 'created' ? `https://www.poptrkr.com/?nid=577&transaction_id=${aff_sub}&amount=${formattedAmount}` : `https://www.poptrkr.com/?nid=577&aid=1&adv_event_id=5&transaction_id=${aff_sub}&amount=${formattedAmount}`,
             method: "POST",
             headers: {
                 "content-type": 'application/json',
