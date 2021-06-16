@@ -16,23 +16,20 @@ router.post("/", async (req, res) => {
 
 
     try {
-        // console.log("cf-data", data);
-        const { contact, purchase, event } = req.body
 
+        const { purchase, event } = req.body
 
+        if (!purchase) return res.status(200).send({ msg: 'Not a purchase event' });
 
-        if (purchase) console.log('type:', event, "purchase: ", purchase)
+        console.log('type:', event, "purchase: ", purchase);
 
-        if (contact) {
-            console.log('contact event, returning from webhook')
-            return res.status(200).send({ msg: 'Do not need contact event' })
-        }
-
-        const { products, status, error_message } = purchase
+        const { products, status, error_message, contact } = purchase
 
         const productAmount = products.reduce((total, product) => {
             return total + parseFloat(product?.amount?.cents)
         }, 0)
+
+        console.log('contact info', contact, "CONTACT UPSELL:", contact.upsell)
 
         const formattedAmount = (productAmount / 100).toFixed(2);
 
@@ -51,8 +48,10 @@ router.post("/", async (req, res) => {
         }
         console.log("affiliate sub id", aff_sub)
 
+        const url = !contact.upsell ? `https://www.poptrkr.com/?nid=577&transaction_id=${aff_sub}&amount=${formattedAmount}` : `https://www.poptrkr.com/?nid=577&aid=6&adv_event_id=7&transaction_id=${aff_sub}&amount=${formattedAmount}`
+
         const response = await axios({
-            url: event === 'created' ? `https://www.poptrkr.com/?nid=577&transaction_id=${aff_sub}&amount=${formattedAmount}` : `https://www.poptrkr.com/?nid=577&aid=1&adv_event_id=5&transaction_id=${aff_sub}&amount=${formattedAmount}`,
+            url,
             method: "POST",
             headers: {
                 "content-type": 'application/json',
