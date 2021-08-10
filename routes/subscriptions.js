@@ -17,7 +17,7 @@ router.post("/slick/subscriptions", async (req, res) => {
   //4. Not sure if needed yet
   try {
     const foundStripeCustomer = await stripe.customers.retrieve(
-      data.object.customer || "cus_JNdWKiPQm6h3ye"
+      data.object.customer || ""
     );
     if (!foundStripeCustomer) {
       return res.status(200).send({ msg: "No stripe customer!" });
@@ -51,8 +51,6 @@ router.post("/slick/subscriptions", async (req, res) => {
           return foundItem.name.toLowerCase() === "slick lash club 28";
         })
         .map(async (product) => {
-          //   const prices = await stripe.prices.list();
-          //   console.log("i am a product", product, subItems, prices);
           const updatedSub = await stripe.subscriptions.update(
             product.data[0].subscription,
             {
