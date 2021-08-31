@@ -3,6 +3,17 @@ const express = require("express");
 const http = require("http");
 const app = express();
 const cors = require("cors");
+const cron = require("node-cron");
+const { runDisputeReport } = require("./routes/middleware/FraudReport.js");
+const connectDB = require("./db/connectDB.js");
+
+connectDB();
+
+module.exports.stripe = require("stripe")(
+  process.env.NODE_ENV === "development"
+    ? process.env.STRIPE_TEST_SECRET
+    : process.env.STRIPE_LIVE_SECRET
+);
 
 app.use(cors({ origin: "*" }));
 app.use(express.json({ extended: true }));
@@ -26,6 +37,12 @@ app.post("/funnel_webhooks/test", async (req, res) => {
 
 app.use("/api/cf-data", require("./routes/api.js"));
 app.use("/api/stripe", require("./routes/subscriptions"));
+app.use("/api/fraud", require("./routes/fraud"));
+
+//Create report at 10am and email it
+cron.schedule("00 00 10 * * *", async () => {
+  await runDisputeReport();
+});
 
 const server = http.createServer(app);
 

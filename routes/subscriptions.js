@@ -1,10 +1,7 @@
 const express = require("express");
+const { stripe } = require("../server");
 const router = express.Router();
-const stripe = require("stripe")(
-  process.env.NODE_ENV === "development"
-    ? process.env.STRIPE_TEST_SECRET
-    : process.env.STRIPE_LIVE_SECRET
-);
+
 //@route GET route
 //@desc Get a subscription once created
 //@access private
