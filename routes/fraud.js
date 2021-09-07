@@ -4,6 +4,7 @@ const fs = require("fs/promises");
 const { v4: uuidv4 } = require("uuid");
 const Report = require("../models/Report");
 const Transaction = require("../models/Transaction");
+const { runBulkDisputeReport } = require("./middleware/BulkFraudReporting");
 const { FraudCheck } = require("./middleware/FraudCheck");
 const { runDisputeReport } = require("./middleware/FraudReport");
 const router = express.Router();
@@ -12,14 +13,10 @@ const router = express.Router();
 //@desc receive incoming payment to check fraud
 //@access private
 router.post("/incoming_payment", async (req, res) => {
-  //   console.log("payment incoming", req.body);
-
   try {
     const {
       data: { object },
     } = req.body;
-
-    console.log("data", object);
 
     const charge = object.charges.data[0];
 
@@ -103,7 +100,7 @@ router.post("/incoming_payment", async (req, res) => {
     }
   } catch (error) {
     console.error("error!", error);
-    return res.status(500).json(error);
+    return res.status(200).json({ msg: "Error With Ekata API" }, error);
   }
 });
 
@@ -127,9 +124,12 @@ router.get("/report/:id", async (req, res) => {
 //@desc run dispute report
 router.get("/disputes", async (req, res) => {
   try {
-    const report = await runDisputeReport();
+    const report = await runBulkDisputeReport();
 
-    console.log("report?", report);
+    // console.log(
+    //   "report?",
+    //   report.reportBody.filter((report) => report !== undefined)
+    // );
     return res.json(report);
   } catch (error) {
     console.error("error", error);
