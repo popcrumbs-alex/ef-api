@@ -25,13 +25,15 @@ router.post("/incoming_payment", async (req, res) => {
     const date = new Date();
     // console.log("chargge", charge);
 
+    const removeSingleQuotes = (val) => val.replace(/'/, "");
     const formatObjForEKATAPI = {
       evidence: {
-        customer_name: object?.shipping?.name || "",
-        customer_email_address: object?.receipt_email || "",
+        customer_name: `${removeSingleQuotes(object?.shipping?.name)}` || "",
+        customer_email_address: removeSingleQuotes(object?.receipt_email) || "",
         customer_ip_address: "",
-        street_line_1: object.shipping?.address?.line1 || "",
-        city: object.shipping?.address?.city || "",
+        street_line_1:
+          removeSingleQuotes(object.shipping?.address?.line1) || "",
+        city: removeSingleQuotes(object.shipping?.address?.city) || "",
         postal_code: object.shipping?.address?.postal_code || "",
         state_code: object.shipping?.address?.state || "",
         country_code: object.shipping?.address?.country || "",
