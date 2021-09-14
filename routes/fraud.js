@@ -26,6 +26,7 @@ router.post("/incoming_payment", async (req, res) => {
     // console.log("chargge", charge);
 
     const removeSingleQuotes = (val = "") => val.replace(/'/, "");
+
     const formatObjForEKATAPI = {
       evidence: {
         customer_name: `${removeSingleQuotes(object?.shipping?.name)}` || "",

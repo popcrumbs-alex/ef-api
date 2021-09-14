@@ -7,66 +7,75 @@ const router = express.Router();
 //@access private
 //@STORE: BOOM BUDS ENDPOINT
 router.post("/", async (req, res) => {
-    // console.log("data", req.headers);
-    const currentDate = new Date();
-    const utcDate = currentDate.toISOString() + " UTC"
-    req.headers["content-type"] = "application/json";
-    req.headers["X-Clickfunnels-Webhook-Delivery-Id"] =
-        process.env.CF_DELIVERY_ID;
-    req.headers["payload"] = { "time": utcDate }
+  // console.log("data", req.headers);
+  console.log("this being hit?");
+  const currentDate = new Date();
 
+  const utcDate = currentDate.toISOString() + " UTC";
 
-    try {
+  req.headers["content-type"] = "application/json";
 
-        const { purchase, event } = req.body
+  req.headers["X-Clickfunnels-Webhook-Delivery-Id"] =
+    process.env.CF_DELIVERY_ID;
+  req.headers["payload"] = { time: utcDate };
 
-        if (!purchase) return res.status(200).send({ msg: 'Not a purchase event' });
+  try {
+    if (!req.body) return res.status(200).send({ msg: "No body received" });
+    console.log("testing... after");
 
-        console.log('type:', event, "purchase: ", purchase);
+    const { purchase, event } = req.body;
 
-        const { products, status, error_message, contact } = purchase
+    if (!purchase) return res.status(200).send({ msg: "Not a purchase event" });
 
-        const productAmount = products.reduce((total, product) => {
-            return total + parseFloat(product?.amount?.cents)
-        }, 0)
+    console.log("type:", event, "purchase: ", purchase);
 
-        console.log('contact info', contact, "CONTACT UPSELL:", contact.upsell)
+    const { products, status, error_message, contact } = purchase;
 
-        const formattedAmount = (productAmount / 100).toFixed(2);
+    const productAmount = products.reduce((total, product) => {
+      return total + parseFloat(product?.amount?.cents);
+    }, 0);
 
-        console.log('product amount', formattedAmount, status, error_message);
-        //handle cards being declined
-        if (status === 'failed') {
-            console.log(error_message)
-            return res.status(200).json(error_message)
-        }
+    console.log("contact info", contact, "CONTACT UPSELL:", contact.upsell);
 
-        const { aff_sub } = purchase.contact
+    const formattedAmount = (productAmount / 100).toFixed(2);
 
-        if (!aff_sub) {
-            console.log('No affiliate id associated with purchase')
-            return res.status(200).json({ msg: 'No affiliate id associated with purchase' })
-        }
-        console.log("affiliate sub id", aff_sub)
-
-        const url = !contact.upsell ? `https://www.poptrkr.com/?nid=577&transaction_id=${aff_sub}&amount=${formattedAmount}` : `https://www.poptrkr.com/?nid=577&aid=6&adv_event_id=7&transaction_id=${aff_sub}&amount=${formattedAmount}`
-
-        const response = await axios({
-            url,
-            method: "POST",
-            headers: {
-                "content-type": 'application/json',
-                "X-Eflow-API-Key": process.env.EF_API
-            },
-        })
-
-        console.log('response to webhook', response.data)
-
-        return res.status(200).json(response.data);
-    } catch (error) {
-        console.error("ERROR:", error);
-        return res.status(500).json({ msg: "Uh Oh" });
+    console.log("product amount", formattedAmount, status, error_message);
+    //handle cards being declined
+    if (status === "failed") {
+      console.log(error_message);
+      return res.status(200).json(error_message);
     }
+
+    const { aff_sub } = purchase.contact;
+
+    if (!aff_sub) {
+      console.log("No affiliate id associated with purchase");
+      return res
+        .status(200)
+        .json({ msg: "No affiliate id associated with purchase" });
+    }
+    console.log("affiliate sub id", aff_sub);
+
+    const url = !contact.upsell
+      ? `https://www.poptrkr.com/?nid=577&transaction_id=${aff_sub}&amount=${formattedAmount}`
+      : `https://www.poptrkr.com/?nid=577&aid=6&adv_event_id=7&transaction_id=${aff_sub}&amount=${formattedAmount}`;
+
+    const response = await axios({
+      url,
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "X-Eflow-API-Key": process.env.EF_API,
+      },
+    });
+
+    console.log("response to webhook", response.data);
+
+    return res.status(200).json(response.data);
+  } catch (error) {
+    console.error("ERROR:", error);
+    return res.status(500).json({ msg: "Uh Oh" });
+  }
 });
 
 //@route POST
@@ -75,68 +84,69 @@ router.post("/", async (req, res) => {
 //@STORE: LUCIANA ROSE
 //EACH AID AND ADV_EVENT IS DIFFERENT
 router.post("/lulu", async (req, res) => {
-    // console.log("data", req.headers);
-    const currentDate = new Date();
-    const utcDate = currentDate.toISOString() + " UTC"
-    req.headers["content-type"] = "application/json";
-    req.headers["X-Clickfunnels-Webhook-Delivery-Id"] =
-        process.env.CF_DELIVERY_ID;
-    req.headers["payload"] = { "time": utcDate }
+  // console.log("data", req.headers);
+  const currentDate = new Date();
+  const utcDate = currentDate.toISOString() + " UTC";
+  req.headers["content-type"] = "application/json";
+  req.headers["X-Clickfunnels-Webhook-Delivery-Id"] =
+    process.env.CF_DELIVERY_ID;
+  req.headers["payload"] = { time: utcDate };
 
+  try {
+    const { purchase, event } = req.body;
 
-    try {
+    if (!purchase) return res.status(200).send({ msg: "Not a purchase event" });
 
-        const { purchase, event } = req.body
+    console.log("type:", event, "purchase: ", purchase);
 
-        if (!purchase) return res.status(200).send({ msg: 'Not a purchase event' });
+    const { products, status, error_message, contact } = purchase;
 
-        console.log('type:', event, "purchase: ", purchase);
+    const productAmount = products.reduce((total, product) => {
+      return total + parseFloat(product?.amount?.cents);
+    }, 0);
 
-        const { products, status, error_message, contact } = purchase
+    console.log("contact info", contact, "CONTACT UPSELL:", contact.upsell);
 
-        const productAmount = products.reduce((total, product) => {
-            return total + parseFloat(product?.amount?.cents)
-        }, 0)
+    const formattedAmount = (productAmount / 100).toFixed(2);
 
-        console.log('contact info', contact, "CONTACT UPSELL:", contact.upsell)
-
-        const formattedAmount = (productAmount / 100).toFixed(2);
-
-        console.log('product amount', formattedAmount, status, error_message);
-        //handle cards being declined
-        if (status === 'failed') {
-            console.log(error_message)
-            return res.status(200).json(error_message)
-        }
-
-        const { aff_sub } = purchase.contact
-
-        if (!aff_sub) {
-            console.log('No affiliate id associated with purchase')
-            return res.status(200).json({ msg: 'No affiliate id associated with purchase' })
-        }
-        console.log("affiliate sub id", aff_sub)
-
-        const url = !contact.upsell ? `https://www.poptrkr.com/?nid=577&transaction_id=${aff_sub}&amount=${formattedAmount}` : `https://www.poptrkr.com/?nid=577&aid=5&adv_event_id=9&transaction_id=${aff_sub}&amount=${formattedAmount}`
-
-        const response = await axios({
-            url,
-            method: "POST",
-            headers: {
-                "content-type": 'application/json',
-                "X-Eflow-API-Key": process.env.EF_API
-            },
-        })
-
-        console.log('response to webhook', response.data)
-
-        return res.status(200).json(response.data);
-    } catch (error) {
-        console.error("ERROR:", error);
-        return res.status(500).json({ msg: "Uh Oh" });
+    console.log("product amount", formattedAmount, status, error_message);
+    //handle cards being declined
+    if (status === "failed") {
+      console.log(error_message);
+      return res.status(200).json(error_message);
     }
-});
 
+    const { aff_sub } = purchase.contact;
+
+    if (!aff_sub) {
+      console.log("No affiliate id associated with purchase");
+      return res
+        .status(200)
+        .json({ msg: "No affiliate id associated with purchase" });
+    }
+    console.log("affiliate sub id", aff_sub);
+
+    const url = !contact.upsell
+      ? `https://www.poptrkr.com/?nid=577&transaction_id=${aff_sub}&amount=${formattedAmount}`
+      : `https://www.poptrkr.com/?nid=577&aid=5&adv_event_id=9&transaction_id=${aff_sub}&amount=${formattedAmount}`;
+
+    const response = await axios({
+      url,
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "X-Eflow-API-Key": process.env.EF_API,
+      },
+    });
+
+    console.log("response to webhook", response.data);
+
+    return res.status(200).json(response.data);
+  } catch (error) {
+    console.error("ERROR:", error);
+    return res.status(500).json({ msg: "Uh Oh" });
+  }
+});
 
 //@route POST
 //@desc POST data from click funnels webhook to eveflow
@@ -144,66 +154,68 @@ router.post("/lulu", async (req, res) => {
 //@STORE: PG
 //EACH AID AND ADV_EVENT IS DIFFERENT
 router.post("/pg", async (req, res) => {
-    // console.log("data", req.headers);
-    const currentDate = new Date();
-    const utcDate = currentDate.toISOString() + " UTC"
-    req.headers["content-type"] = "application/json";
-    req.headers["X-Clickfunnels-Webhook-Delivery-Id"] =
-        process.env.CF_DELIVERY_ID;
-    req.headers["payload"] = { "time": utcDate }
+  // console.log("data", req.headers);
+  const currentDate = new Date();
+  const utcDate = currentDate.toISOString() + " UTC";
+  req.headers["content-type"] = "application/json";
+  req.headers["X-Clickfunnels-Webhook-Delivery-Id"] =
+    process.env.CF_DELIVERY_ID;
+  req.headers["payload"] = { time: utcDate };
 
+  try {
+    const { purchase, event } = req.body;
 
-    try {
+    if (!purchase) return res.status(200).send({ msg: "Not a purchase event" });
 
-        const { purchase, event } = req.body
+    console.log("type:", event, "purchase: ", purchase);
 
-        if (!purchase) return res.status(200).send({ msg: 'Not a purchase event' });
+    const { products, status, error_message, contact } = purchase;
 
-        console.log('type:', event, "purchase: ", purchase);
+    const productAmount = products.reduce((total, product) => {
+      return total + parseFloat(product?.amount?.cents);
+    }, 0);
 
-        const { products, status, error_message, contact } = purchase
+    console.log("contact info", contact, "CONTACT UPSELL:", contact.upsell);
 
-        const productAmount = products.reduce((total, product) => {
-            return total + parseFloat(product?.amount?.cents)
-        }, 0)
+    const formattedAmount = (productAmount / 100).toFixed(2);
 
-        console.log('contact info', contact, "CONTACT UPSELL:", contact.upsell)
-
-        const formattedAmount = (productAmount / 100).toFixed(2);
-
-        console.log('product amount', formattedAmount, status, error_message);
-        //handle cards being declined
-        if (status === 'failed') {
-            console.log(error_message)
-            return res.status(200).json(error_message)
-        }
-
-        const { aff_sub } = purchase.contact
-
-        if (!aff_sub) {
-            console.log('No affiliate id associated with purchase')
-            return res.status(200).json({ msg: 'No affiliate id associated with purchase' })
-        }
-        console.log("affiliate sub id", aff_sub)
-
-        const url = !contact.upsell ? `https://www.poptrkr.com/?nid=577&transaction_id=${aff_sub}&amount=${formattedAmount}` : `https://www.poptrkr.com/?nid=577&aid=1&adv_event_id=5&transaction_id=${aff_sub}&amount=${formattedAmount}`
-
-        const response = await axios({
-            url,
-            method: "POST",
-            headers: {
-                "content-type": 'application/json',
-                "X-Eflow-API-Key": process.env.EF_API
-            },
-        })
-
-        console.log('response to webhook', response.data)
-
-        return res.status(200).json(response.data);
-    } catch (error) {
-        console.error("ERROR:", error);
-        return res.status(500).json({ msg: "Uh Oh" });
+    console.log("product amount", formattedAmount, status, error_message);
+    //handle cards being declined
+    if (status === "failed") {
+      console.log(error_message);
+      return res.status(200).json(error_message);
     }
+
+    const { aff_sub } = purchase.contact;
+
+    if (!aff_sub) {
+      console.log("No affiliate id associated with purchase");
+      return res
+        .status(200)
+        .json({ msg: "No affiliate id associated with purchase" });
+    }
+    console.log("affiliate sub id", aff_sub);
+
+    const url = !contact.upsell
+      ? `https://www.poptrkr.com/?nid=577&transaction_id=${aff_sub}&amount=${formattedAmount}`
+      : `https://www.poptrkr.com/?nid=577&aid=1&adv_event_id=5&transaction_id=${aff_sub}&amount=${formattedAmount}`;
+
+    const response = await axios({
+      url,
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "X-Eflow-API-Key": process.env.EF_API,
+      },
+    });
+
+    console.log("response to webhook", response.data);
+
+    return res.status(200).json(response.data);
+  } catch (error) {
+    console.error("ERROR:", error);
+    return res.status(500).json({ msg: "Uh Oh" });
+  }
 });
 
 //@route POST
@@ -212,113 +224,113 @@ router.post("/pg", async (req, res) => {
 //@STORE: SLICK
 //EACH AID AND ADV_EVENT IS DIFFERENT
 router.post("/slick", async (req, res) => {
-    // console.log("data", req.headers);
-    const currentDate = new Date();
-    const utcDate = currentDate.toISOString() + " UTC"
-    req.headers["content-type"] = "application/json";
-    req.headers["X-Clickfunnels-Webhook-Delivery-Id"] =
-        process.env.CF_DELIVERY_ID;
-    req.headers["payload"] = { "time": utcDate }
+  // console.log("data", req.headers);
+  const currentDate = new Date();
+  const utcDate = currentDate.toISOString() + " UTC";
+  req.headers["content-type"] = "application/json";
+  req.headers["X-Clickfunnels-Webhook-Delivery-Id"] =
+    process.env.CF_DELIVERY_ID;
+  req.headers["payload"] = { time: utcDate };
 
+  try {
+    const { purchase, event } = req.body;
 
-    try {
+    if (!purchase) return res.status(200).send({ msg: "Not a purchase event" });
 
-        const { purchase, event } = req.body
+    console.log("type:", event, "purchase: ", purchase);
 
-        if (!purchase) return res.status(200).send({ msg: 'Not a purchase event' });
+    const { products, status, error_message, contact } = purchase;
 
-        console.log('type:', event, "purchase: ", purchase);
+    const productAmount = products.reduce((total, product) => {
+      return total + parseFloat(product?.amount?.cents);
+    }, 0);
 
-        const { products, status, error_message, contact } = purchase
+    console.log("contact info", contact, "CONTACT UPSELL:", contact.upsell);
 
-        const productAmount = products.reduce((total, product) => {
-            return total + parseFloat(product?.amount?.cents)
-        }, 0)
+    const formattedAmount = (productAmount / 100).toFixed(2);
 
-        console.log('contact info', contact, "CONTACT UPSELL:", contact.upsell)
-
-        const formattedAmount = (productAmount / 100).toFixed(2);
-
-        console.log('product amount', formattedAmount, status, error_message);
-        //handle cards being declined
-        if (status === 'failed') {
-            console.log(error_message)
-            return res.status(200).json(error_message)
-        }
-
-        const { aff_sub } = purchase.contact
-
-        if (!aff_sub) {
-            console.log('No affiliate id associated with purchase')
-            return res.status(200).json({ msg: 'No affiliate id associated with purchase' })
-        }
-        console.log("affiliate sub id", aff_sub)
-
-        const url = !contact.upsell ? `https://www.poptrkr.com/?nid=577&transaction_id=${aff_sub}&amount=${formattedAmount}` : `https://www.poptrkr.com/?nid=577&aid=7&adv_event_id=10&transaction_id=${aff_sub}&amount=${formattedAmount}`
-
-        const response = await axios({
-            url,
-            method: "POST",
-            headers: {
-                "content-type": 'application/json',
-                "X-Eflow-API-Key": process.env.EF_API
-            },
-        })
-
-        console.log('response to webhook', response.data)
-
-        return res.status(200).json(response.data);
-    } catch (error) {
-        console.error("ERROR:", error);
-        return res.status(500).json({ msg: "Uh Oh" });
+    console.log("product amount", formattedAmount, status, error_message);
+    //handle cards being declined
+    if (status === "failed") {
+      console.log(error_message);
+      return res.status(200).json(error_message);
     }
+
+    const { aff_sub } = purchase.contact;
+
+    if (!aff_sub) {
+      console.log("No affiliate id associated with purchase");
+      return res
+        .status(200)
+        .json({ msg: "No affiliate id associated with purchase" });
+    }
+    console.log("affiliate sub id", aff_sub);
+
+    const url = !contact.upsell
+      ? `https://www.poptrkr.com/?nid=577&transaction_id=${aff_sub}&amount=${formattedAmount}`
+      : `https://www.poptrkr.com/?nid=577&aid=7&adv_event_id=10&transaction_id=${aff_sub}&amount=${formattedAmount}`;
+
+    const response = await axios({
+      url,
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "X-Eflow-API-Key": process.env.EF_API,
+      },
+    });
+
+    console.log("response to webhook", response.data);
+
+    return res.status(200).json(response.data);
+  } catch (error) {
+    console.error("ERROR:", error);
+    return res.status(500).json({ msg: "Uh Oh" });
+  }
 });
 
 //@route post route
 //@desc post a conversion
 //@access private
 router.post("/conversion", async (req, res) => {
-    try {
-        const response = await axios({
-            url: "https://www.poptrkr.com/?nid=577&transaction_id=fb356898be7440bbb5436571fd83fdae&amount=39.00",
-            method: "POST",
-            headers: {
-                "content-type": 'application/json',
-                "X-Eflow-API-Key": process.env.EF_API
-            },
-        })
+  try {
+    const response = await axios({
+      url: "https://www.poptrkr.com/?nid=577&transaction_id=fb356898be7440bbb5436571fd83fdae&amount=39.00",
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "X-Eflow-API-Key": process.env.EF_API,
+      },
+    });
 
-        console.log(response.data)
-        return res.status(200).json(response.data)
-    } catch (error) {
-        console.log('Error locating affiliates', error)
-        return res.status(500).json({ msg: 'Internal Server Error' })
-    }
-})
+    console.log(response.data);
+    return res.status(200).json(response.data);
+  } catch (error) {
+    console.log("Error locating affiliates", error);
+    return res.status(500).json({ msg: "Internal Server Error" });
+  }
+});
 
 //@route get route
 //@desc get all offers
 //@access private
-router.get('/offers', async (req, res) => {
-    try {
-        const response = await axios({
-            url: "https://api.eflow.team/v1/advertisers/offers",
-            method: 'GET',
-            headers: {
-                "content-type": 'application/json',
-                "X-Eflow-API-Key": "nVIQHQpXQMCt88ROIO3pTA"
-            }
-        })
+router.get("/offers", async (req, res) => {
+  try {
+    const response = await axios({
+      url: "https://api.eflow.team/v1/advertisers/offers",
+      method: "GET",
+      headers: {
+        "content-type": "application/json",
+        "X-Eflow-API-Key": "nVIQHQpXQMCt88ROIO3pTA",
+      },
+    });
 
-        console.log('response : ', response.data);
+    console.log("response : ", response.data);
 
-        res.json(response.data)
-    } catch (error) {
-        console.error("error fetching offers");
-        res.status(500).json(error)
-    }
-})
+    res.json(response.data);
+  } catch (error) {
+    console.error("error fetching offers");
+    res.status(500).json(error);
+  }
+});
 
 module.exports = router;
-
-

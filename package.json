@@ -4,13 +4,15 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha --require @babel/polyfill --require @babel/register --recursive --exit"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@babel/core": "^7.15.5",
     "axios": "^0.21.1",
     "braintree": "^3.7.0",
+    "chai-http": "^4.3.0",
     "cors": "^2.8.5",
     "date-fns": "^2.23.0",
     "dotenv": "^10.0.0",
@@ -20,5 +22,12 @@
     "node-cron": "^3.0.0",
     "stripe": "^8.165.0",
     "uuid": "^8.3.2"
+  },
+  "devDependencies": {
+    "@babel/polyfill": "^7.12.1",
+    "@babel/register": "^7.15.3",
+    "chai": "^4.3.4",
+    "mocha": "^9.1.1",
+    "supertest": "^6.1.6"
   }
 }
