@@ -33,4 +33,46 @@ describe("Task API routes", function () {
         });
     });
   });
+  describe("Test POST route to make sure webhook endpoint is functional", function () {
+    it("Should return a status of 200", function (done) {
+      chai
+        .request(api)
+        .post("/api/cf-data/pg")
+        .end((err, res) => {
+          if (err) done(err);
+          console.log("test result", res.body);
+          expect(res).to.have.status(200);
+          expect(res).to.be.an("object");
+          done();
+        });
+    });
+  });
+  describe("Test POST route to make sure webhook endpoint is functional", function () {
+    it("Should return a status of 200", function (done) {
+      chai
+        .request(api)
+        .post("/api/cf-data/slick")
+        .end((err, res) => {
+          if (err) done(err);
+          console.log("test result", res.body);
+          expect(res).to.have.status(200);
+          expect(res).to.be.an("object");
+          done();
+        });
+    });
+  });
+  describe("Test POST route to make sure webhook endpoint is functional", function () {
+    it("Should return a status of 200", function (done) {
+      chai
+        .request(api)
+        .post("/api/cf-data/lulu")
+        .end((err, res) => {
+          if (err) done(err);
+          console.log("test result", res.body);
+          expect(res).to.have.status(200);
+          expect(res).to.be.an("object");
+          done();
+        });
+    });
+  });
 });

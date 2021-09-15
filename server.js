@@ -16,6 +16,7 @@ module.exports.stripe = require("stripe")(
 );
 
 app.use(cors({ origin: "*" }));
+app.use("/api/fraud", express.raw({ type: "*/*" }), require("./routes/fraud"));
 app.use(express.json({ extended: true }));
 
 app.get("/", (req, res) => res.send("CF-EF-BRIDGE API IS RUNNING"));
@@ -37,7 +38,6 @@ app.post("/funnel_webhooks/test", async (req, res) => {
 
 app.use("/api/cf-data", require("./routes/api.js"));
 app.use("/api/stripe", require("./routes/subscriptions"));
-app.use("/api/fraud", require("./routes/fraud"));
 
 //Create report at 10am and email it
 cron.schedule("00 00 10 * * *", async () => {

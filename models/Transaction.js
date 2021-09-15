@@ -8,7 +8,6 @@ const TransactionSchema = new mongoose.Schema({
     type: Date,
     default: Date.now(),
   },
-
   fraud_risk: {
     type: String,
   },
@@ -17,6 +16,22 @@ const TransactionSchema = new mongoose.Schema({
   },
   customer_email_address: {
     type: String,
+  },
+  valid_email: {
+    isValid: {
+      type: Boolean,
+    },
+    reasons: {
+      type: Object,
+    },
+  },
+  valid_location: {
+    isValid: {
+      type: Boolean,
+    },
+    reasons: {
+      type: Object,
+    },
   },
   customer_ip_address: {
     type: String,

@@ -1,109 +1,99 @@
 const stripe = require("stripe")(process.env.STRIPE_LULU_LIVE);
+const transaction = require("braintree/lib/braintree/transaction");
 const express = require("express");
 const fs = require("fs/promises");
 const { v4: uuidv4 } = require("uuid");
 const Report = require("../models/Report");
 const Transaction = require("../models/Transaction");
 const { runBulkDisputeReport } = require("./middleware/BulkFraudReporting");
-const { FraudCheck } = require("./middleware/FraudCheck");
-const { runDisputeReport } = require("./middleware/FraudReport");
+const { validateLocation } = require("./middleware/geocode");
+const { validateEmail } = require("./middleware/validateEmail");
 const router = express.Router();
+const endpointSecret = process.env.STRIPE_SIGN_SECRET;
 
 //@route GET route
 //@desc receive incoming payment to check fraud
 //@access private
+//TODO WORK ON A MANUAL FRAUD SOLUTION
 router.post("/incoming_payment", async (req, res) => {
+  ////////////////////////////////////////////
+  const sig = req.headers["stripe-signature"];
+  //stripe event
+  let event;
+
   try {
-    const {
-      data: { object },
-    } = req.body;
+    //Authenticate request from stripe API
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err) {
+    res.status(400).send(`Webhook Error: ${err.message}`);
+    return;
+  }
+  //@Steps
+  //1. Receive customer info from stripe webhook
+  //If no info is provided, add a fraud score
+  //2. Validate customer on stripe
+  //If customer has data with past fraudulent charges, mark that as possible fraud
+  //3.Validate email:
+  //If email has been used in fraud charges/disputes or is an invalid address, mark that as fraud or possilbly incorrect info
+  //4. Validate customer address
+  //If address is provided, confirm validate that address
+  const transactionUnderReview = {};
+  //set the basis for a fraud score
+  //score will be out of 100
+  let fraud_risk_score = 0;
 
-    const charge = object.charges.data[0];
+  try {
+    // Handle the event
+    switch (event.type) {
+      case "payment_intent.succeeded":
+        const paymentIntent = event.data.object;
+        console.log("payment intentorino", paymentIntent);
+        const emailIsValid = await validateEmail(paymentIntent.receipt_email);
+        // console.log("is valid email?", isValid);
+        if (emailIsValid.valid) {
+          //Set the email validity for transaction model to be true
+          transactionUnderReview.valid_email = {
+            isValid: true,
+            reasons: emailIsValid.reasons,
+          };
+        }
+        if (!emailIsValid.valid) {
+          transactionUnderReview.valid_email = {
+            isValid: false,
+            reasons: emailIsValid.reasons,
+          };
+          //Invalid email is a +10
+          fraud_risk_score = fraud_risk_score + 20;
+        }
 
-    const transaction_id = uuidv4();
+        //Check for valid address here
+        const geoCode = await validateLocation(paymentIntent.shipping.address);
+        console.log("geo results", geoCode);
 
-    const date = new Date();
-    // console.log("chargge", charge);
+        if (geoCode.valid) {
+          transactionUnderReview.valid_location = {
+            isValid: true,
+            reasons: geoCode.reasons,
+          };
+        }
 
-    const removeSingleQuotes = (val = "") => val.replace(/'/, "");
-
-    const formatObjForEKATAPI = {
-      evidence: {
-        customer_name: `${removeSingleQuotes(object?.shipping?.name)}` || "",
-        customer_email_address: removeSingleQuotes(object?.receipt_email) || "",
-        customer_ip_address: "",
-        street_line_1:
-          removeSingleQuotes(object.shipping?.address?.line1) || "",
-        city: removeSingleQuotes(object.shipping?.address?.city) || "",
-        postal_code: object.shipping?.address?.postal_code || "",
-        state_code: object.shipping?.address?.state || "",
-        country_code: object.shipping?.address?.country || "",
-        phone: object.shipping?.phone || "",
-        transaction_id,
-        transaction_time: date,
-      },
-    };
-    const checkforFraudASYNC = await FraudCheck(formatObjForEKATAPI.evidence);
-
-    let newTransaction;
-
-    const { caseRating, percentage } = checkforFraudASYNC;
-
-    switch (caseRating) {
-      case "HIGH":
-        const highFraudCharge = await stripe.charges.update(charge.id, {
-          metadata: {
-            fraud_warning:
-              "This charge scored a high risk of fraud, please review",
-          },
-
-          fraud_details: {
-            user_report: "fraudulent",
-          },
-        });
-
-        newTransaction = new Transaction({
-          ...formatObjForEKATAPI.evidence,
-          fraud_risk: "HIGH",
-          fraud_percentage: percentage,
-        });
-
-        await newTransaction.save();
-
-        console.log("HIGH FRAUD", newTransaction, highFraudCharge);
-        return res.status(200).json({
-          msg: "High level of fraud detected",
-          charge: highFraudCharge,
-        });
-      case "MEDIUM":
-        const mediumFraudCharge = await stripe.charges.update(charge.id, {
-          metadata: {
-            fraud_warning:
-              "This charge scored over a 50% chance of being fraudulent, please review",
-          },
-          fraud_details: {
-            user_report: "fraudulent",
-          },
-        });
-
-        newTransaction = new Transaction({
-          ...formatObjForEKATAPI.evidence,
-          fraud_risk: "MEDIUM",
-          fraud_percentage: percentage,
-        });
-
-        await newTransaction.save();
-        console.log("MEDIUM FRAUD", mediumFraudCharge);
-        return res
-          .status(200)
-          .json({ msg: "Possible fraud detected", charge: mediumFraudCharge });
+        if (!geoCode.valid) {
+          transactionUnderReview.valid_location = {
+            isValid: false,
+            reasons: geoCode.reasons,
+          };
+          fraud_risk_score = fraud_risk_score + 20;
+        }
+        break;
+      // ... handle other event types
       default:
-        console.log("Low risk of fraud ");
-        return res.status(200).json({ msg: "Webhook ok, no fraud detected" });
+        console.log(`Unhandled event type ${event.type}`);
     }
+
+    return res.status(200).json({ msg: "Fraud Chek Complete" });
   } catch (error) {
     console.error("error!", error);
-    return res.status(200).json({ msg: "Error With Ekata API" }, error);
+    return res.status(200).json({ msg: "Error With Ekata API" });
   }
 });
 
