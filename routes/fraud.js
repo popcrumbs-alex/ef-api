@@ -44,7 +44,10 @@ router.post("/incoming_payment", async (req, res) => {
   //set the basis for a fraud score
   //score will be out of 100
   let fraud_risk_score = 0;
+  //stripe payment intent
   let paymentIntent;
+  //stripe charge object
+  let charge;
   try {
     // Handle the event
     switch (event.type) {
@@ -141,6 +144,14 @@ router.post("/incoming_payment", async (req, res) => {
         await newTransactionHighFraud.save();
 
         console.log("high fraud transaction:", newTransactionHighFraud);
+
+        if (paymentIntent.charges.length === 0) return;
+
+        charge = await stripe.charges.update(paymentIntent.charges.data[0].id, {
+          fraud_details: { user_report: "fraudulent" },
+        });
+
+        console.log("charge!!", charge);
         break;
       case fraud_risk_score >= 40 && fraud_risk_score < 60:
         transactionUnderReview.fraud_risk = `MEDIUM_FRAUD_POSSIBILITY: Payee has a fraud risk score of ${fraud_risk_score}, please review`;
@@ -151,9 +162,20 @@ router.post("/incoming_payment", async (req, res) => {
 
         await newTransactionMedFraud.save();
         console.log("medium fraud transaction:", newTransactionMedFraud);
+
+        if (paymentIntent.charges.length === 0) return;
+
+        charge = await stripe.charges.update(paymentIntent.charges.data[0].id, {
+          fraud_details: { user_report: "fraudulent" },
+        });
+
+        console.log("charge!!", charge);
         break;
       default:
         console.log("Low fraud risk", fraud_risk_score);
+        charge = await stripe.charges.update(paymentIntent.charges.data[0].id, {
+          fraud_details: { user_report: "safe" },
+        });
         break;
     }
 
