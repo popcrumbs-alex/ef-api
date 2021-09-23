@@ -1,5 +1,4 @@
 const stripe = require("stripe")(process.env.STRIPE_LULU_LIVE);
-const transaction = require("braintree/lib/braintree/transaction");
 const express = require("express");
 const fs = require("fs/promises");
 const { v4: uuidv4 } = require("uuid");
@@ -9,12 +8,16 @@ const { runBulkDisputeReport } = require("./middleware/BulkFraudReporting");
 const { validateLocation } = require("./middleware/geocode");
 const { validateEmail } = require("./middleware/validateEmail");
 const router = express.Router();
-const endpointSecret = process.env.STRIPE_SIGN_SECRET;
-
+const liveEndpointSecret = process.env.STRIPE_SIGN_SECRET;
+const devEndpointSecret = process.env.STRIPE_SIGN_TEST;
+const endpointSecret =
+  process.env.NODE_ENV !== "production"
+    ? devEndpointSecret
+    : liveEndpointSecret;
 //@route GET route
 //@desc receive incoming payment to check fraud
 //@access private
-//TODO WORK ON A MANUAL FRAUD SOLUTION
+//Very basic fraud detection
 router.post("/incoming_payment", async (req, res) => {
   ////////////////////////////////////////////
   const sig = req.headers["stripe-signature"];
@@ -23,7 +26,7 @@ router.post("/incoming_payment", async (req, res) => {
 
   try {
     //Authenticate request from stripe API
-    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    event = stripe.webhooks.constructEvent(req.body, sig, liveEndpointSecret);
   } catch (err) {
     res.status(400).send(`Webhook Error: ${err.message}`);
     return;
@@ -41,15 +44,18 @@ router.post("/incoming_payment", async (req, res) => {
   //set the basis for a fraud score
   //score will be out of 100
   let fraud_risk_score = 0;
-
+  let paymentIntent;
   try {
     // Handle the event
     switch (event.type) {
       case "payment_intent.succeeded":
-        const paymentIntent = event.data.object;
+        ///////////////////////////////////////
+        paymentIntent = event.data.object;
         console.log("payment intentorino", paymentIntent);
+        ////////////////////////////////////////////////////////////////////
+        //Deep validation on emails provided by purchase
         const emailIsValid = await validateEmail(paymentIntent.receipt_email);
-        // console.log("is valid email?", isValid);
+
         if (emailIsValid.valid) {
           //Set the email validity for transaction model to be true
           transactionUnderReview.valid_email = {
@@ -57,6 +63,7 @@ router.post("/incoming_payment", async (req, res) => {
             reasons: emailIsValid.reasons,
           };
         }
+
         if (!emailIsValid.valid) {
           transactionUnderReview.valid_email = {
             isValid: false,
@@ -66,23 +73,34 @@ router.post("/incoming_payment", async (req, res) => {
           fraud_risk_score = fraud_risk_score + 20;
         }
 
-        //Check for valid address here
-        const geoCode = await validateLocation(paymentIntent.shipping.address);
-        console.log("geo results", geoCode);
-
-        if (geoCode.valid) {
-          transactionUnderReview.valid_location = {
-            isValid: true,
-            reasons: geoCode.reasons,
-          };
+        //check if address is provided, if not, that is a high indication of fraud
+        if (
+          paymentIntent.shipping === null ||
+          !paymentIntent.shipping.address
+        ) {
+          fraud_risk_score = fraud_risk_score + 40;
         }
+        //Check for valid address here
+        if (paymentIntent.shipping) {
+          const geoCode = await validateLocation(
+            paymentIntent.shipping.address
+          );
+          console.log("geo results", geoCode);
 
-        if (!geoCode.valid) {
-          transactionUnderReview.valid_location = {
-            isValid: false,
-            reasons: geoCode.reasons,
-          };
-          fraud_risk_score = fraud_risk_score + 20;
+          if (geoCode.valid) {
+            transactionUnderReview.valid_location = {
+              isValid: true,
+              reasons: geoCode.reasons,
+            };
+          }
+
+          if (!geoCode.valid) {
+            transactionUnderReview.valid_location = {
+              isValid: false,
+              reasons: geoCode.reasons,
+            };
+            fraud_risk_score = fraud_risk_score + 20;
+          }
         }
         break;
       // ... handle other event types
@@ -90,10 +108,59 @@ router.post("/incoming_payment", async (req, res) => {
         console.log(`Unhandled event type ${event.type}`);
     }
 
-    return res.status(200).json({ msg: "Fraud Chek Complete" });
+    transactionUnderReview.transaction_id = uuidv4();
+    if (paymentIntent.shipping.name)
+      transactionUnderReview.customer_name = paymentIntent.shipping.name;
+    if (paymentIntent.receipt_email)
+      transactionUnderReview.customer_email_address =
+        paymentIntent.receipt_email;
+    if (paymentIntent.shipping.address.line1)
+      transactionUnderReview.street_line_1 =
+        paymentIntent.shipping.address.line1;
+    if (paymentIntent.shipping.address.city)
+      transactionUnderReview.city = paymentIntent.shipping.address.city;
+    if (paymentIntent.shipping.address.postal_code)
+      transactionUnderReview.postal_code =
+        paymentIntent.shipping.address.postal_code;
+    if (paymentIntent.shipping.address.state)
+      transactionUnderReview.state_code = paymentIntent.shipping.address.state;
+    if (paymentIntent.shipping.address.country)
+      transactionUnderReview.country = paymentIntent.shipping.address.country;
+    if (paymentIntent.shipping.phone)
+      transactionUnderReview.phone = paymentIntent.shipping.phone;
+
+    //No need to create a fraud risk if the user scores under 40 percent
+    switch (true) {
+      case fraud_risk_score >= 60:
+        transactionUnderReview.fraud_risk = `HIGH_FRAUD_POSSIBILITY: Payee has a fraud risk score of ${fraud_risk_score}, please review`;
+        //Save the transaction in the database
+        const newTransactionHighFraud = new Transaction({
+          ...transactionUnderReview,
+        });
+
+        await newTransactionHighFraud.save();
+
+        console.log("high fraud transaction:", newTransactionHighFraud);
+        break;
+      case fraud_risk_score >= 40 && fraud_risk_score < 60:
+        transactionUnderReview.fraud_risk = `MEDIUM_FRAUD_POSSIBILITY: Payee has a fraud risk score of ${fraud_risk_score}, please review`;
+        //Save the transaction in the database
+        const newTransactionMedFraud = new Transaction({
+          ...transactionUnderReview,
+        });
+
+        await newTransactionMedFraud.save();
+        console.log("medium fraud transaction:", newTransactionMedFraud);
+        break;
+      default:
+        console.log("Low fraud risk", fraud_risk_score);
+        break;
+    }
+
+    return res.status(200).json({ msg: "Fraud Check Complete" });
   } catch (error) {
     console.error("error!", error);
-    return res.status(200).json({ msg: "Error With Ekata API" });
+    return res.status(200).json({ msg: "Error checking for fraud" });
   }
 });
 

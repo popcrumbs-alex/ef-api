@@ -9,10 +9,10 @@ module.exports.validateLocation = async (address = null) => {
 
     const geoResponse = await axios({
       method: "GET",
-      url: `https://maps.googleapis.com/maps/api/geocode/json?address=${formatAddress}&key=${process.env.GEOLOCATION_API}`,
+      url: `https://maps.googleapis.com/maps/api/geocode/json?address=${formatAddress}&key=${process.env.GEOCODING_API}`,
     });
 
-    console.log("gsdfsdgs", geoResponse.data);
+    console.log("gsdfsdgs", geoResponse.data, process.env.GEOCODING_API);
 
     return {
       valid: geoResponse.data.status === "OK",

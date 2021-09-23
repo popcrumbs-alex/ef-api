@@ -6,10 +6,13 @@ const TransactionSchema = new mongoose.Schema({
   },
   transaction_time: {
     type: Date,
-    default: Date.now(),
+    default: Date.now,
   },
   fraud_risk: {
     type: String,
+  },
+  fraud_risk_score: {
+    type: Number,
   },
   customer_name: {
     type: String,
